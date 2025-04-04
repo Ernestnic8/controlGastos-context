@@ -13,11 +13,13 @@ const ExpensiveForm = () => {
     category: "",
     expenseName: "",
     date: new Date(),
-  });
+  })
+
+  const { dispatch, state, remainingBudget } = useBudget();
 
   const [error, setError] = useState("");
 
-  const { dispatch, state } = useBudget();
+  const [previusAmount, setPreviusAmount] = useState(0);
 
   useEffect(() => {
     if (state.editingId) {
@@ -26,8 +28,10 @@ const ExpensiveForm = () => {
       )[0];
       if (expenseToEdit) {
         setExpense(expenseToEdit);
+        setPreviusAmount(expenseToEdit.amount);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.editingId]);
 
   const handleChange = (
@@ -49,26 +53,41 @@ const ExpensiveForm = () => {
   };
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+
     e.preventDefault();
-    if (Object.values(expense).includes("")) {
+
+    if (Object.values(expense).includes("") || Object.values(expense).includes(0)) {
       setError("Por favor, complete todos los campos.");
       return;
     }
-    dispatch({ type: "add-expense", payload: { expense } });
 
-    // setExpense({
-    //   amount: 0,
-    //   category: "",
-    //   expenseName: "",
-    //   date: new Date(),
-    // });
+    if((expense.amount - previusAmount) > remainingBudget) {
+      setError("Este gasto excede el presupuesto disponible.");
+      return;
+    }
 
+    if (state.editingId) {
+      dispatch({
+        type: "update-expense",
+        payload: { expense: { id: state.editingId, ...expense } },
+      });
+    } else {
+      dispatch({ type: "add-expense", payload: { expense } });
+    }
+
+    setExpense({
+      amount: 0,
+      category: "",
+      expenseName: "",
+      date: new Date(),
+    });
+    setPreviusAmount(0);
   };
 
   return (
     <form className="space-y-5" onSubmit={handleSubmit}>
       <legend className="uppercase text-center text-2xl font-black border-b-4 border-blue-500 py-2">
-        Nuevo gasto
+        {state.editingId ? "Actualizar Gasto" : "Nuevo Gasto"}
       </legend>
       {error && <ErrorMessage>{error}</ErrorMessage>}
       <div className="flex flex-col gap-2">
@@ -133,7 +152,7 @@ const ExpensiveForm = () => {
       <input
         className="bg-blue-600 uppercase w-full text-white font-bold py-2 px-4 rounded-md cursor-pointer hover:bg-blue-800 transition duration-300"
         type="submit"
-        value="Registrar Gasto"
+        value={state.editingId ? "Guardar cambios" : "Añadir Gasto"}
       />
     </form>
   );
